@@ -4,7 +4,10 @@ use tcod::console::*;
 //Actual size of the window
 
 const SCREEN_WIDTH: i32 = 80;
-const SCREEN_HEIGHT: i32 = 45;
+const SCREEN_HEIGHT: i32 = 50;
+
+const MAP_WIDTH: i32 = 80;
+const MAP_HEIGHT: i32 = 45;
 
 const LIMIT_FPS: i32 = 20; //20 FPS max
 
@@ -28,13 +31,12 @@ impl Tile {
 
     pub fn wall() -> Self {
         Tile {
-            blocked: false,
-	    block_sight: false,
+            blocked: true,
+	    block_sight: true,
         }
     }
 }
 
-#[derive(Debug)]
 struct Tcod {
     root: Root,
     con: Offscreen,
@@ -50,7 +52,7 @@ fn make_map() -> Map {
     // fill map with unblocked tiles
     let mut map = vec![vec![Tile::empty(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
 
-    //Two test pillars for map
+    // Two test pillars for map
     map[30][22] = Tile::wall();
     map[50][22] = Tile::wall();
 
@@ -74,6 +76,7 @@ fn render_all(tcod: &mut Tcod, game: &Game, objects: &[Object]){
     blit( &tcod.con, (0,0), (MAP_WIDTH, MAP_HEIGHT), &mut tcod.root, (0,0), 1.0, 1.0,);
 }
 
+#[derive(Debug)]
 struct Object {
     x: i32,
     y: i32,
@@ -87,9 +90,11 @@ impl Object {
     }
 
     ///move by a given amount
-    pub fn move_by(&mut self, dx: i32, dy: i32) {
-         self.x += dx;
-	 self.y += dy;
+    pub fn move_by(&mut self, dx: i32, dy: i32, game: &Game) {
+         if !game.map[(self.x + dx) as usize][(self.y + dy) as usize].blocked {
+		self.x += dx;
+	 	self.y += dy;
+	}
     }
 
     ///set color and then draw the character that represents this object at its position
@@ -99,7 +104,7 @@ impl Object {
     }
 }
 
-fn handle_keys(tcod: &mut Tcod, player: &mut Object) -> bool {
+fn handle_keys(tcod: &mut Tcod, game: &Game, player: &mut Object) -> bool {
     use tcod::input::Key;  
     use tcod::input::KeyCode::*;
 
@@ -108,10 +113,10 @@ fn handle_keys(tcod: &mut Tcod, player: &mut Object) -> bool {
     let key = tcod.root.wait_for_keypress(true);
     match key {
 	//movement keys
-	Key { code: Up, .. } => player.move_by(0, -1),
-	Key { code: Down, .. } => player.move_by(0, 1),
-	Key { code: Left, .. } => player.move_by(-1, 0),
-	Key { code: Right, .. } => player.move_by(1, 0),
+	Key { code: Up, .. } => player.move_by(0, -1, game),
+	Key { code: Down, .. } => player.move_by(0, 1, game),
+	Key { code: Left, .. } => player.move_by(-1, 0, game),
+	Key { code: Right, .. } => player.move_by(1, 0, game),
 
 	Key {
 	    code: Enter,
@@ -175,7 +180,7 @@ fn main() {
 	tcod.root.wait_for_keypress(true);
 
         let player = &mut objects[0];
-	let exit = handle_keys(&mut tcod, player);
+	let exit = handle_keys(&mut tcod, &game, player);
 	if exit {
 	    break;
 	}
