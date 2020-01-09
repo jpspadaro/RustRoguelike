@@ -3,6 +3,8 @@ use tcod::console::*;
 use std::cmp;
 use rand::Rng;
 
+use tcod::map::{FovAlgorithm, Map as FovMap};
+
 //Actual size of the window
 
 const SCREEN_WIDTH: i32 = 80;
@@ -13,11 +15,17 @@ const MAP_HEIGHT: i32 = 45;
 
 const LIMIT_FPS: i32 = 20; //20 FPS max
 
+const FOV_ALG: FovAlgorithm = FovAlgorithm::Basic; //Default FOV Algo
+const FOV_LIGHT_WALS: bool - true; //light walls or not
+const TORCH_RADIUS: i32 = 10;
+
+
 const COLOR_DARK_WALL: Color = Color {r: 0, g: 0, b: 100};
+const COLOR_LIGHT_WALL: Color = Color {r: 130, g: 110, b: 50};
 const COLOR_DARK_GROUND: Color = Color {r: 0, g: 50, b: 150,};
+const COLOR_LIGHT_GROUND: Color = Color {r: 200, g: 180, b: 50};
 
-
-//paranmeters for dungeon generator
+//parameters for dungeon generator
 const ROOM_MAX_SIZE: i32 = 10;
 const ROOM_MIN_SIZE: i32 = 6;
 const MAX_ROOMS: i32 = 30;
@@ -48,6 +56,7 @@ impl Tile {
 struct Tcod {
     root: Root,
     con: Offscreen,
+    fov: FovMap,
 }
 
 type Map = Vec<Vec<Tile>>;
@@ -255,7 +264,11 @@ fn main() {
 
     let con = Offscreen::new(MAP_WIDTH, MAP_HEIGHT);
 
-    let mut tcod = Tcod { root, con };
+    let mut tcod = Tcod { 
+        root, 
+        con: Offscreen::new(MAP_WIDTH, MAP_HEIGHT)
+        fov: FovMap::new(MAP_WIDTH, MAP_HEIGHT),
+    };
 
     //create object representing player
     let player = Object::new(25, 23, '@', WHITE);
@@ -271,10 +284,21 @@ fn main() {
     };
 
     while !tcod.root.window_closed() {
-	tcod.con.set_default_foreground(WHITE);
-	for object in &objects {
-	    object.draw(&mut tcod.con);
-	}
+    	for y in 0..MAP_HEIGHT {
+            for x in 0..MAP_WIDTH {
+                tcod.fov.set(
+                    x,
+                    y,
+                    !game.map[x as usize][y as usize].block_sight,
+                    !game.map[x as usize][y as usize].blacked,
+                    );
+            }
+        }
+
+        tcod.con.set_default_foreground(WHITE);
+    	for object in &objects {
+	        object.draw(&mut tcod.con);
+	    }
 		
         tcod.con.clear();
 
