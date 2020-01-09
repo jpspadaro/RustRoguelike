@@ -115,7 +115,7 @@ fn create_room(room: Rect, map: &mut Map) {
 }
 
 fn make_map(player: &mut Object) -> Map {
-    // fill map with unblocked tiles
+    // fill map with blocked tiles
     let mut map = vec![vec![Tile::wall(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
 
     let mut rooms = vec![];
@@ -126,26 +126,40 @@ fn make_map(player: &mut Object) -> Map {
         // random position without going out of the boundaries of the map
         let x = rand::thread_rng().gen_range(0, MAP_WIDTH - w);
         let y = rand::thread_rng().gen_range(0, MAP_HEIGHT - h);
-    }
 
-    let new_room = Rect::new(x, y, w, h);
-    let failed = rooms
-        .iter()
-        .any(|other_room| new_room.intersects_with(other_room));
+        let new_room = Rect::new(x, y, w, h);
+        let failed = rooms
+            .iter()
+            .any(|other_room| new_room.intersects_with(other_room));
 
-    if !failed {
-        /// this means there are no intersections
+        if !failed {
+            /// this means there are no intersections
 
-        // paint into map tiles
-        create_room(new_room, &mut map);
+            // paint into map tiles
+            create_room(new_room, &mut map);
 
-        // center coordinates of the newroom, will be useful later
-        let (new_x, new_y) = new_room.center();
+            // center coordinates of the newroom, will be useful later
+            let (new_x, new_y) = new_room.center();
 
-        if rooms.is_empty() {
-            // this is the first room, where the player starts at
-            player.x = new_x;
-            player.y = new_y;
+            if rooms.is_empty() {
+                // this is the first room, where the player starts at
+                player.x = new_x;
+                player.y = new_y;
+            } else {
+                let (prev_x, prev_y) = rooms[rooms.len() - 1].center();
+
+                if rand::random() {
+                    // Horizontal, then vertical
+                    create_h_tunnel(prev_x, new_x, prev_y, &mut map);
+                    create_v_tunnel(prev_y, new_y, new_x, &mut map);
+                } else {
+                    // Vertical, then horizontal
+                    create_v_tunnel(prev_y, new_y, prev_x, &mut map);
+                    create_h_tunnel(prev_x, new_x, new_y, &mut map);
+                }
+            }
+            //append new room to list
+            rooms.push(new_room);
         }
     }
     map
@@ -253,7 +267,7 @@ fn main() {
     let mut objects = [player, npc];
 
     let game = Game {
-        map: make_map(),
+        map: make_map(&mut objects[0]),
     };
 
     while !tcod.root.window_closed() {
